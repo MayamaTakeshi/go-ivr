@@ -1,0 +1,142 @@
+<document type="freeswitch/xml">
+
+<X-PRE-PROCESS cmd="include" data="vars.xml"/>
+
+<section name="configuration" description="Various Configuration">
+
+<configuration name="console.conf" description="Console Logger">
+  <mappings>
+    <map name="all" value="console,debug,info,notice,warning,err,crit,alert"/>
+  </mappings>
+  <settings>
+    <param name="colorize" value="true"/>
+    <param name="loglevel" value="warning"/>
+  </settings>
+</configuration>
+
+
+<configuration name="modules.conf" description="Modules">
+  <modules>
+    <load module="mod_console" critical="true"/>
+    <load module="mod_logfile" critical="true"/>
+    <load module="mod_event_socket" critical="true"/>
+    <load module="mod_sofia" critical="true"/>
+    <load module="mod_commands" critical="true"/>
+    <load module="mod_dptools" critical="true"/>
+    <load module="mod_dialplan_xml" critical="true"/>
+  </modules>
+</configuration>
+
+
+<configuration name="sofia.conf" description="sofia Endpoint">
+  <global_settings>
+    <param name="log-level" value="0"/>
+    <param name="debug-presence" value="0"/>
+  </global_settings>
+
+  <profiles>
+  <profile name="external">
+
+  <settings>
+    <param name="user-agent-string" value="freeswitch"/>
+    <param name="debug" value="0"/>
+    <param name="shutdown-on-fail" value="true"/>
+    <param name="sip-trace" value="no"/>
+    <param name="sip-capture" value="no"/>
+    <param name="watchdog-enabled" value="no"/>
+    <param name="watchdog-step-timeout" value="30000"/>
+    <param name="watchdog-event-timeout" value="30000"/>
+    <param name="forward-unsolicited-mwi-notify" value="false"/>
+    <param name="context" value="public"/>
+    <param name="rfc2833-pt" value="101"/>
+    <param name="sip-port" value="5160"/>
+    <param name="dialplan" value="XML"/>
+    <param name="dtmf-duration" value="2000"/>
+    <param name="inbound-codec-prefs" value="G7221@32000h,G7221@16000h,G722,PCMU,PCMA,GSM"/>
+    <param name="outbound-codec-prefs" value="G7221@32000h,G7221@16000h,G722,PCMU,PCMA,GSM"/>
+    <param name="rtp-timer-name" value="soft"/>
+    <param name="rtp-ip" value="$${local_ip_address}"/>
+    <param name="sip-ip" value="$${local_ip_address}"/>
+    <param name="disable-register" value="true"/>
+    <param name="manage-presence" value="false"/>
+    <param name="auth-calls" value="false"/>
+    <param name="ext-rtp-ip" value="$${local_ip_address}"/>
+    <param name="ext-sip-ip" value="$${local_ip_address}"/>
+    <param name="pass-callee-id" value="false"/>
+    <param name="bind-params" value="transport=udp"/>
+  </settings>
+  </profile>
+  </profiles>
+</configuration>
+
+<configuration name="switch.conf" description="Core Configuration">
+  <settings>
+    <param name="colorize-console" value="true"/>
+    <param name="max-db-handles" value="50"/>
+    <param name="db-handle-timeout" value="10"/>
+    <param name="max-sessions" value="2000"/>
+    <param name="sessions-per-second" value="20"/>
+    <!-- Default Global Log Level - value is one of debug,info,notice,warning,err,crit,alert -->
+    <param name="loglevel" value="debug"/>
+    <param name="dump-cores" value="no"/>
+    <!--RTP port range -->
+    <param name="rtp-start-port" value="10000"/>
+    <param name="rtp-end-port" value="20000"/>
+  </settings>
+</configuration>
+
+
+<configuration name="logfile.conf" description="File Logging">
+  <settings>
+    <param name="rotate-on-hup" value="true"/>
+  </settings>
+  <profiles>
+    <profile name="test">
+      <settings>
+        <param name="logfile" value="$${log_file}"/>
+        <param name="rollover" value="1048510"/>
+      </settings>
+      <mappings>
+        <map name="all" value="debug,info,notice,warning,err,crit,alert"/>
+      </mappings>
+    </profile>
+  </profiles>
+</configuration>
+
+
+<configuration name="event_socket.conf" description="Socket Client">
+  <settings>
+    <param name="nat-map" value="false"/>
+    <param name="listen-ip" value="$${local_ip_address}"/>
+    <param name="listen-port" value="8021"/>
+    <param name="password" value="ClueCon"/>
+    <param name="apply-inbound-acl" value="127.0.0.1/16"/>
+  </settings>
+
+</configuration>
+
+
+</section>
+
+<section name="dialplan" description="Regex/XML Dialplan">
+
+  <context name="public">
+    <extension name="ToGoIVR">
+      <condition field="destination_number" expression="^0911112222$">
+        <action application="set" data="goivr_config=xml_url=$${xml_url}"/>
+        <action application="socket" data="$${goivr_server}} async full"/> 
+      </condition>
+    </extension>
+  </context>
+
+  <context name="private">
+    <extension name="Transfer">
+      <condition field="destination_number" expression="^.*$">
+        <action application="bridge" data="sofia/external/${destination_number}@$${sip_gateway}"/>
+      </condition>
+    </extension>
+  </context>
+
+</section>
+</document>
+
