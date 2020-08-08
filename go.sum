@@ -1,0 +1,14 @@
+github.com/0x19/goesl v0.0.0-20191107044804-3efcc2f41ccb h1:dirTTp4hNv3XxkGUhUFMb0rHntWI5bdYnjYCPFz0Zws=
+github.com/0x19/goesl v0.0.0-20191107044804-3efcc2f41ccb/go.mod h1:Xptqx3we8gfkPbMqYhn2VU46/RALZ/AweiMHet2QNp8=
+github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 h1:4daAzAu0S6Vi7/lbWECcX0j45yZReDZ56BQsrVBOEEY=
+github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535/go.mod h1:oGkLhpf+kjZl6xBf758TQhh5XrAeiJv/7FRz/2spLIg=
+github.com/cesanta/ucl v0.0.0-20150604132806-97c016fce90e h1:0I6ouUl8zX7Frqi3WryxiEZ5lCIuus74yiKuNsVyM7c=
+github.com/cesanta/ucl v0.0.0-20150604132806-97c016fce90e/go.mod h1:B6PyaABmFz89eRwXtLjqtDVXk+2F8ctkiQoxRr+ZWDQ=
+github.com/cesanta/validate-json v0.0.0-20150603122804-2f16017c76fc h1:x7AiG4PTuuluRgUi+6wBNyCSv+i1xmYWFUXgTH1MOes=
+github.com/cesanta/validate-json v0.0.0-20150603122804-2f16017c76fc/go.mod h1:PsAZGfRLi5x79ez9Y1YLiTh5CV0j6e+P69e+SzR22Mg=
+github.com/eduardbcom/gonfig v0.0.0-20190424113650-c516a7ddbf41 h1:0L5kfST1LBiF/qUwbNEz+POpYogu+/+36gh6ji4ZUkk=
+github.com/eduardbcom/gonfig v0.0.0-20190424113650-c516a7ddbf41/go.mod h1:HUMwZz4q08WSy3eoOFhks12lWm81kIW9nnxd3n3MSQE=
+github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=
+github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
+github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
+github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=

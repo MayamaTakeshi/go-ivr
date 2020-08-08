@@ -1,0 +1,25 @@
+2020/08/08 takeshi:
+
+This is the first go app that I've ever written so this is what I did so far:
+
+1) installed go:
+  cd tmp
+  wget https://golang.org/dl/go1.14.7.linux-amd64.tar.gz
+  tar -C /usr/local -xzf go1.14.7.linux-amd64.tar.gz
+  vim /etc/profile
+  # add this line:
+    export PATH=$PATH:/usr/local/go/bin
+  . /etc/profile
+
+2) created the new repo as https://github.com/MayamaTakeshi/go-ivr
+
+3) cloned the repo locally and cd to folder
+  git clone https://MayamaTakeshi@github.com/MayamaTakeshi/go-ivr
+  cd go-ivr
+
+4) called 'go mod init' (this created go.mod):
+  go mod init github.com/MayamaTakeshi/go-ivr
+
+5) added goesl (go.mod was updated with dependencies):
+  go get github.com/0x19/goesl
+
