@@ -8,9 +8,9 @@ This is a work in progress. There is nothing to see yet.
 
 
 ## host preparation
-We will need as server running freeswitch.
+We will need a server running freeswitch.
 
-In debian 10 you can install freeswitch like this:
+In debian 10 you can install freeswitch this way:
 ```
 apt-get update && apt-get install -y gnupg2 wget lsb-release
 
@@ -65,7 +65,7 @@ In the same server do:
 apt install build-essential automake autoconf libtool libspeex-dev libopus-dev libsdl2-dev libavdevice-dev libswscale-dev libv4l-dev libopencore-amrnb-dev libopencore-amrwb-dev libvo-amrwbenc-dev libopus-dev libsdl2-dev libopencore-amrnb-dev libopencore-amrwb-dev libvo-amrwbenc-dev libboost-dev libspandsp-dev libpcap-dev libssl-dev uuid-dev
 
 cd tests/functional
-ap install jq
+apt install jq
 nvm install `jq -r .engines.node package.json`
 nvm use `jq -r .engines.node package.json`
 
