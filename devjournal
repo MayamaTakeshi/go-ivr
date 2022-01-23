@@ -1,3 +1,4 @@
+-------------------------------------------------------------------------
 2020/08/08 takeshi:
 
 This is the first go app that I've ever written so this is what I did so far:
@@ -22,4 +23,12 @@ This is the first go app that I've ever written so this is what I did so far:
 
 5) added goesl (go.mod was updated with dependencies):
   go get github.com/0x19/goesl
+
+
+-------------------------------------------------------------------------
+2022/01/23 takeshi:
+
+Restarting this project today.
+Nowadays, there is no special configuration to use go.
+We will use asdf to manage golang versions.
 
