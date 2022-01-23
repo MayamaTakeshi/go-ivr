@@ -58,4 +58,32 @@ asdf global golang 1.17.6
 # test golang installation:
 go version
 ```
+## preparing testing framework
+In the same server do:
+```
+
+apt install build-essential automake autoconf libtool libspeex-dev libopus-dev libsdl2-dev libavdevice-dev libswscale-dev libv4l-dev libopencore-amrnb-dev libopencore-amrwb-dev libvo-amrwbenc-dev libopus-dev libsdl2-dev libopencore-amrnb-dev libopencore-amrwb-dev libvo-amrwbenc-dev libboost-dev libspandsp-dev libpcap-dev libssl-dev uuid-dev
+
+cd tests/functional
+ap install jq
+nvm install `jq -r .engines.node package.json`
+nvm use `jq -r .engines.node package.json`
+
+git clone https://github.com/MayamaTakeshi/bcg729
+cd bcg729
+git checkout faaa895862165acde6df8add722ba4f85a25007d
+cmake . 
+make
+make install
+ldconfig
+
+npm install
+
+```
+## testing
+We don't have tests for the ivr engine yet.
+But to test if the test infra itself is OK do:
+```
+node first.js
+```
 
