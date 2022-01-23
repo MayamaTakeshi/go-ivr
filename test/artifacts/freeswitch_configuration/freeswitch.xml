@@ -124,7 +124,7 @@
     <extension name="ToGoIVR">
       <condition field="destination_number" expression="^0911112222$">
         <action application="set" data="goivr_config=xml_url=$${xml_url}"/>
-        <action application="socket" data="$${goivr_server}} async full"/> 
+        <action application="socket" data="$${goivr_server} async full"/> 
       </condition>
     </extension>
   </context>

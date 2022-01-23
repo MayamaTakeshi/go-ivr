@@ -1,6 +1,6 @@
 module github.com/MayamaTakeshi/go-ivr
 
-go 1.14
+go 1.17
 
 require (
 	github.com/0x19/goesl v0.0.0-20191107044804-3efcc2f41ccb // indirect

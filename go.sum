@@ -10,5 +10,7 @@ github.com/eduardbcom/gonfig v0.0.0-20190424113650-c516a7ddbf41 h1:0L5kfST1LBiF/
 github.com/eduardbcom/gonfig v0.0.0-20190424113650-c516a7ddbf41/go.mod h1:HUMwZz4q08WSy3eoOFhks12lWm81kIW9nnxd3n3MSQE=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
+github.com/sbabiv/xml2map v1.2.1 h1:1lT7t0hhUvXZCkdxqtq4n8/ZCnwLWGq4rDuDv5XOoFE=
+github.com/sbabiv/xml2map v1.2.1/go.mod h1:2TPoAfcaM7+Sd4iriPvzyntb2mx7GY+kkQpB/GQa/eo=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=

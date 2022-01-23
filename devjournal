@@ -32,3 +32,11 @@ Restarting this project today.
 Nowadays, there is no special configuration to use go.
 We will use asdf to manage golang versions.
 
+
+I was planning to use 
+  https://github.com/sbabiv/xml2map
+to convert XML to a generic map structure.
+However, now I think this cannot be done as a map would lose ordering.
+What we actually want is to have map for attributes of each element. But the elements themselves must be list items that might contain children.
+
+

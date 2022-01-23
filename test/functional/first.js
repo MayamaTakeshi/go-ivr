@@ -3,10 +3,11 @@ const Zester = require('zester')
 const m = require('data-matching')
 const sip_msg = require('sip-matching')
 
+sip.set_log_level(6)
+
 const z = new Zester()
 
 async function test() {
-//sip.set_log_level(6)
 	const flags = 0
 
 	sip.dtmf_aggregation_on(500)
