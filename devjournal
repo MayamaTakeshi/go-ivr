@@ -40,3 +40,7 @@ However, now I think this cannot be done as a map would lose ordering.
 What we actually want is to have map for attributes of each element. But the elements themselves must be list items that might contain children.
 
 
+Searching further, I think we should use
+  https://github.com/eliben/gosax
+as it will simplify preparing XML schema validation.
+

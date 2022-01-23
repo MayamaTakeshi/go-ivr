@@ -2,14 +2,26 @@ package main
  
 import (
     . "github.com/0x19/goesl"
-	"github.com/sbabiv/xml2map"
     "strings"
 	"log"
 	"net/http"
 	"fmt"
 	"io/ioutil"
-	"bytes"
 )
+
+func KeyValueString2Map(s string, sep string, kv_sep string) map[string]string {
+	m := make(map[string]string)
+	tokens := strings.Split(s, sep)
+    for _, token := range tokens {
+        tks := strings.Split(token, kv_sep)
+        if len(tks) != 2 {
+            Error("Invalid length")
+        }
+        m[tks[0]] = tks[1]
+    }
+
+    return m
+}
 
 func getXML(url string) ([]byte, error) {
   resp, err := http.Get(url)
@@ -64,7 +76,26 @@ func handle(s *OutboundServer) {
                 break
             }
 
-			var xml_url = "http://127.0.0.1/ivr"
+			var xml_url = ""
+
+			if msg, err := conn.ReadMessage(); err != nil {
+			  log.Printf("Failed to ReadMessage: %v", err)
+              Error("Got error while reading message: %s", err)
+			} else {
+				fmt.Println("got msg:")
+				fmt.Println(msg)
+
+				goivr_config := msg.GetHeader("Variable_goivr_config")
+				fmt.Println("goivr_config:")
+				fmt.Println(goivr_config)
+
+				m := KeyValueString2Map(goivr_config, ";", "=")
+				if _, ok := m["xml_url"]; ok {
+					xml_url = m["xml_url"]
+				} else {
+					Error("Could not resolve xml_url")
+				}
+			}
 
 			if xmlBytes, err := getXML(xml_url); err != nil {
 			  log.Printf("Failed to get XML: %v", err)
