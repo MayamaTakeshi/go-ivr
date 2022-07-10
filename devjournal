@@ -44,3 +44,12 @@ Searching further, I think we should use
   https://github.com/eliben/gosax
 as it will simplify preparing XML schema validation.
 
+-------------------------------------------------------------------------
+2022/07/10 takeshi:
+
+I researched existing golang ESL libraries and they are not exactly what we need.
+So we will copy and adapt code from:
+  https://github.com/xiaosongfu/eslgo
+
+
+

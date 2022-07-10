@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	. "github.com/0x19/goesl"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,7 +14,7 @@ func KeyValueString2Map(s string, sep string, kv_sep string) map[string]string {
 	for _, token := range tokens {
 		tks := strings.Split(token, kv_sep)
 		if len(tks) != 2 {
-			Error("Invalid length")
+			log.Println("Invalid length")
 		}
 		m[tks[0]] = tks[1]
 	}
@@ -42,95 +41,66 @@ func getXML(url string) ([]byte, error) {
 	return data, nil
 }
 
-var (
-	goeslMessage = "Hello from GoESL. Open source FreeSWITCH event socket wrapper written in Go!"
-)
-
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			Error("Recovered in: ", r)
-		}
-	}()
-
-	if s, err := NewOutboundServer("127.0.0.1:8084"); err != nil {
-		Error("Got error while starting FreeSWITCH outbound server: %s", err)
-	} else {
-		go handle(s)
-		s.Start()
-	}
-
+	ListenAndServe(":8084", handler)
 }
 
-// handle - Running under goroutine here to explain how to run tts outbound server
-func handle(s *OutboundServer) {
-	for {
+func handler(c *Connection) {
+	go func () {
+		fmt.Println("new client:", c.RemoteAddr())
 
-		select {
+		c.SendCommand("connect")
 
-		case conn := <-s.Conns:
-			Notice("New incomming connection: %v", conn)
-
-			if err := conn.Connect(); err != nil {
-				Error("Got error while accepting connection: %s", err)
-				break
-			}
-
-			var xml_url = ""
-
-			if msg, err := conn.ReadMessage(); err != nil {
-				log.Printf("Failed to ReadMessage: %v", err)
-				Error("Got error while reading message: %s", err)
-			} else {
-				fmt.Println("got msg:")
-				fmt.Println(msg)
-
-				goivr_config := msg.GetHeader("Variable_goivr_config")
-				fmt.Println("goivr_config:")
-				fmt.Println(goivr_config)
-
-				m := KeyValueString2Map(goivr_config, ";", "=")
-				if _, ok := m["xml_url"]; ok {
-					xml_url = m["xml_url"]
-				} else {
-					Error("Could not resolve xml_url")
-				}
-			}
-
-			if xmlBytes, err := getXML(xml_url); err != nil {
-				log.Printf("Failed to get XML: %v", err)
-				Error("Got error while getting XML: %s", err)
-			} else {
-				fmt.Println(xmlBytes)
-			}
-
-			//if hm, err := conn.ExecuteHangup(cUUID, "USER_BUSY", false); err != nil {
-			if hm, err := conn.ExecuteHangup("", "USER_BUSY", false); err != nil {
-				Error("Got error while executing hangup: %s", err)
-				break
-			} else {
-				Debug("Hangup Message: %s", hm)
-			}
-
-			go func() {
-				for {
-					msg, err := conn.ReadMessage()
-
-					if err != nil {
-
-						// If it contains EOF, we really dont care...
-						if !strings.Contains(err.Error(), "EOF") {
-							Error("Error while reading Freeswitch message: %s", err)
-						}
-						break
-					}
-
-					Debug("Got message: %s", msg)
-				}
-			}()
-
-		default:
+		ev, err := c.ReadEvent()
+		if err != nil {
+			log.Println(err)
+			return
 		}
-	}
 
+		var xml_url = ""
+
+		fmt.Println("got ev:")
+		fmt.Println(ev)
+
+		goivr_config := ev.Get("Variable_goivr_config")
+		fmt.Println("goivr_config:")
+		fmt.Println(goivr_config)
+
+		m := KeyValueString2Map(goivr_config, ";", "=")
+		if _, ok := m["xml_url"]; ok {
+			xml_url = m["xml_url"]
+		} else {
+			log.Println("Could not resolve xml_url")
+		}
+
+		if xmlBytes, err := getXML(xml_url); err != nil {
+			log.Printf("Failed to get XML: %v", err)
+			log.Println("Got error while getting XML: %s", err)
+		} else {
+			fmt.Println(string(xmlBytes))
+		}
+
+		c.SendCommand("linger 10")
+		ev, err = c.ReadEvent()
+		fmt.Println(ev)
+
+		c.SendCommand("myevents")
+		ev, err = c.ReadEvent()
+		fmt.Println(ev)
+
+		ev, err = c.Execute("hangup", "USER_BUSY", true)
+		if err != nil {
+			log.Println(err)
+		}
+		ev.PrettyPrint()
+		for {
+			ev, err = c.ReadEvent()
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			fmt.Println("\nNew event")
+			ev.PrettyPrint()
+		}
+	}()
 }
