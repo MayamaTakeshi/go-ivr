@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	//"github.com/beevik/etree"
 )
 
 func KeyValueString2Map(s string, sep string, kv_sep string) map[string]string {
@@ -42,6 +43,7 @@ func getXML(url string) ([]byte, error) {
 }
 
 func main() {
+	fmt.Println("Starting server")
 	ListenAndServe(":8084", handler)
 }
 
