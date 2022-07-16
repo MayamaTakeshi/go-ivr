@@ -1,0 +1,313 @@
+#!/bin/bash
+
+set -o nounset #exit if attempts to use unset variable
+set -o errexit #exit on error
+set -o pipefail #forces whole pipe operation to fail if a single command fails
+
+
+
+START_DIR=`pwd`
+
+
+function usage() {
+	cat <<EOF
+Usage $0 freeswitch_git_repo freeswitch_commit_or_tag
+Ex:   $0 https://github.com/signalwire/freeswitch dd2411336fbb17be120801f8d26cfed01e0e6740
+EOF
+}
+
+
+if [[ $# != 2 ]]
+then
+	echo "Invalid number of arguments"
+	usage
+	exit 1
+fi
+
+
+freeswitch_git_repo=$1
+freeswitch_commit=$2
+
+
+if [[ "$freeswitch_commit" != "latest" && ${#freeswitch_commit} != 40 ]]
+then
+	echo "Invalid freeswitch_commit $freeswitch_commit (it must be a 40-hex-char string or 'latest' to get latest source)"
+	exit 1;
+fi
+
+
+
+apt-get -y update 
+
+# build
+packages="build-essential cmake automake autoconf libtool pkg-config"
+
+# general
+packages="$packages libssl-dev zlib1g-dev libdb-dev unixodbc-dev libncurses5-dev libexpat1-dev libgdbm-dev bison libtpl-dev libtiff5-dev uuid-dev"
+
+# core
+packages="$packages libpcre3-dev libedit-dev libsqlite3-dev libcurl4-openssl-dev nasm"
+
+# core codecs
+packages="$packages libogg-dev libspeex-dev libspeexdsp-dev"
+
+# mod_enum
+packages="$packages libldns-dev"
+
+# mod_python3
+packages="$packages python3-dev"
+
+# mod_av
+packages="$packages libavformat-dev libswscale-dev libavresample-dev"
+
+# mod_opus
+packages="$packages libopus-dev"
+
+# mod_sndfile
+packages="$packages libsndfile1-dev libflac-dev libogg-dev libvorbis-dev"
+
+# mod_shout
+packages="$packages libshout3-dev libmpg123-dev libmp3lame-dev"
+
+# mod_flite
+packages="$packages flite1-dev"
+
+
+for package in $packages
+do
+    DEBIAN_FRONTEND=noninteractive apt-get -y install $package
+done
+
+
+mkdir -p /usr/local/src/git
+
+cd /usr/local/src/git
+rm -fr freeswitch
+git clone https://github.com/signalwire/freeswitch
+cd freeswitch
+if [ "$freeswitch_commit" != "latest" ]
+then
+	echo "Checking out $freeswitch_commit"
+	git checkout $freeswitch_commit
+else
+	echo "Using latest"
+fi
+
+
+cd /usr/local/src/git/freeswitch
+cat > modules.conf <<EOF
+loggers/mod_console
+loggers/mod_logfile
+loggers/mod_syslog
+#applications/mod_cidlookup
+applications/mod_commands
+applications/mod_conference
+applications/mod_dptools
+applications/mod_enum
+#applications/mod_osp
+applications/mod_fifo
+applications/mod_curl
+applications/mod_db
+applications/mod_hash
+#applications/mod_redis
+applications/mod_voicemail
+applications/mod_directory
+#applications/mod_lcr
+applications/mod_limit
+applications/mod_expr
+applications/mod_esf
+#applications/mod_easyroute
+#applications/mod_fsv
+#applications/mod_nibblebill
+#applications/mod_soundtouch
+#applications/mod_rss
+applications/mod_spandsp
+#applications/mod_snom
+#applications/mod_vmd
+#applications/mod_avmd
+#applications/mod_memcache
+applications/mod_spy
+applications/mod_cluechoo
+applications/mod_valet_parking
+#applications/mod_distributor
+#applications/mod_stress
+#applications/mod_snapshot
+#applications/mod_snipe_hunt
+#applications/mod_callcenter
+#applications/mod_fsk
+#applications/mod_ladspa
+#applications/mod_mongo
+applications/mod_httapi
+codecs/mod_g723_1
+codecs/mod_amr
+codecs/mod_amrwb
+#codecs/mod_silk
+#codecs/mod_codec2
+codecs/mod_g729
+#codecs/mod_com_g729
+codecs/mod_h26x
+#codecs/mod_voipcodecs
+#codecs/mod_bv
+#codecs/mod_ilbc
+#codecs/mod_speex
+#codecs/mod_siren
+codecs/mod_celt
+codecs/mod_opus
+codecs/mod_isac
+#codecs/mod_sangoma_codec
+#codecs/mod_dahdi_codec
+#dialplans/mod_dialplan_directory
+dialplans/mod_dialplan_xml
+dialplans/mod_dialplan_asterisk
+#directories/mod_ldap
+#endpoints/mod_dingaling
+#endpoints/mod_iax
+#endpoints/mod_portaudio
+endpoints/mod_sofia
+endpoints/mod_loopback
+#endpoints/mod_alsa
+#endpoints/mod_opal
+#endpoints/mod_skypiax
+#endpoints/mod_skinny
+#endpoints/mod_skypopen
+#endpoints/mod_h323
+#endpoints/mod_khomp
+#endpoints/mod_rtmp
+#../../libs/openzap/mod_openzap
+#../../libs/freetdm/mod_freetdm
+asr_tts/mod_unimrcp
+asr_tts/mod_flite
+asr_tts/mod_pocketsphinx
+#asr_tts/mod_cepstral
+#asr_tts/mod_tts_commandline
+#event_handlers/mod_event_multicast
+event_handlers/mod_event_socket
+#event_handlers/mod_event_zmq
+event_handlers/mod_cdr_csv
+#event_handlers/mod_cdr_sqlite
+#event_handlers/mod_cdr_pg_csv
+#event_handlers/mod_radius_cdr
+#event_handlers/mod_cdr_mongodb
+event_handlers/mod_erlang_event
+#event_handlers/mod_snmp
+formats/mod_native_file
+formats/mod_sndfile
+formats/mod_shout
+formats/mod_local_stream
+formats/mod_tone_stream
+#formats/mod_portaudio_stream
+formats/mod_shell_stream
+#languages/mod_python
+languages/mod_spidermonkey
+languages/mod_lua
+#languages/mod_perl
+#languages/mod_yaml
+#languages/mod_java
+#languages/mod_managed
+xml_int/mod_xml_rpc
+xml_int/mod_xml_curl
+xml_int/mod_xml_cdr
+#xml_int/mod_xml_ldap
+say/mod_say_en
+say/mod_say_ja
+say/mod_say_de
+say/mod_say_es
+say/mod_say_fr
+say/mod_say_it
+say/mod_say_nl
+say/mod_say_ru
+say/mod_say_zh
+say/mod_say_hu
+say/mod_say_th
+#say/mod_say_he
+#timers/mod_timerfd
+EOF
+
+
+
+echo "Deleting /usr/local/freeswitch/conf (must be done before installing FS because 'make install' will not overwrite this folder)"
+rm -fr /usr/local/freeswitch/conf
+rm -fr /usr/local/freeswitch
+
+
+cd /usr/local/src/git
+rm -fr libks
+git clone https://github.com/signalwire/libks
+cd libks
+git checkout 0e9ebc75812c2d73263d06a3ef11f7fedb762133
+
+cd /usr/local/src/git
+rm -fr sofia-sip
+git clone https://github.com/freeswitch/sofia-sip
+cd sofia-sip
+git checkout 1fef149e81414f3cd4d7651eb399ce4ffaee878b
+
+cd /usr/local/src/git
+rm -fr spandsp
+git clone https://github.com/freeswitch/spandsp
+cd spandsp
+git checkout e59ca8fb8b1591e626e6a12fdc60a2ebe83435ed
+
+cd /usr/local/src/git
+rm -fr signalwire-c
+git clone https://github.com/signalwire/signalwire-c
+cd signalwire-c
+git checkout 03827ee3c4834b21b0b5c67027eed3cc009be0ce
+
+
+cd /usr/local/src/git/libks
+cmake . -DCMAKE_INSTALL_PREFIX=/usr -DWITH_LIBBACKTRACE=1
+make install
+
+cd /usr/local/src/git/sofia-sip
+./bootstrap.sh
+./configure CFLAGS="-g -ggdb" --with-pic --with-glib=no --without-doxygen --disable-stun
+make -j`nproc --all`
+make install
+
+cd /usr/local/src/git/spandsp
+./bootstrap.sh
+./configure CFLAGS="-g -ggdb" --with-pic
+make -j`nproc --all`
+make install
+
+cd /usr/local/src/git/signalwire-c
+PKG_CONFIG_PATH=/usr/lib/pkgconfig cmake . -DCMAKE_INSTALL_PREFIX=/usr
+make install
+
+cd /usr/local/src/git/freeswitch
+./bootstrap.sh -j
+
+cd /usr/local/src/git/freeswitch
+./configure -C
+
+cd /usr/local/src/git/freeswitch
+make -j`nproc`
+make install
+
+for cmd in "make sounds-install" "make moh-install" "make samples";
+do
+	echo "Executing '$cmd'"
+	cd /usr/local/src/git/freeswitch
+
+	$cmd 2> temp_result #redirect strerr to temp_result
+
+	set +o errexit
+	grep -i "[^\.\t_ ]error[^\.\t_ ]" temp_result #check if there is error in temp_result
+	result=$?
+	set -o errexit
+        if [ $result == 1 ]
+        then
+		echo "Call to grep failed because of no match (no string "error" in temp_result. So cmd='$cmd' was successful"
+                echo "OK"
+        else
+		echo "String error was found in file temp_result"
+		exit 1;
+        fi
+done
+
+
+ldconfig
+
+echo Success
+

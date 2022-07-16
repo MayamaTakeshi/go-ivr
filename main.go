@@ -31,12 +31,12 @@ func getXML(url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return []byte{}, fmt.Errorf("Status error: %v", resp.StatusCode)
+		return []byte{}, fmt.Errorf("status error: %v", resp.StatusCode)
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return []byte{}, fmt.Errorf("Read body: %v", err)
+		return []byte{}, fmt.Errorf("read body: %v", err)
 	}
 
 	return data, nil
@@ -45,10 +45,11 @@ func getXML(url string) ([]byte, error) {
 func main() {
 	fmt.Println("Starting server")
 	ListenAndServe(":8084", handler)
+	fmt.Println("Finished server")
 }
 
 func handler(c *Connection) {
-	go func () {
+	go func() {
 		fmt.Println("new client:", c.RemoteAddr())
 
 		c.SendCommand("connect")
@@ -77,17 +78,23 @@ func handler(c *Connection) {
 
 		if xmlBytes, err := getXML(xml_url); err != nil {
 			log.Printf("Failed to get XML: %v", err)
-			log.Println("Got error while getting XML: %s", err)
+			log.Printf("Got error while getting XML: %s", err)
 		} else {
 			fmt.Println(string(xmlBytes))
 		}
 
 		c.SendCommand("linger 10")
 		ev, err = c.ReadEvent()
+		if err != nil {
+			log.Println(err)
+		}
 		fmt.Println(ev)
 
 		c.SendCommand("myevents")
 		ev, err = c.ReadEvent()
+		if err != nil {
+			log.Println(err)
+		}
 		fmt.Println(ev)
 
 		ev, err = c.Execute("hangup", "USER_BUSY", true)

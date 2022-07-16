@@ -36,12 +36,12 @@ const bufferSize = 1024 << 6 // For the socket reader
 const eventsBuffer = 16      // For the events channel (memory eater!)
 const timeoutPeriod = 10 * time.Second
 
-var errMissingAuthRequest = errors.New("Missing auth request")
-var errInvalidPassword = errors.New("Invalid password")
-var errInvalidCommand = errors.New("Invalid command contains \\r or \\n")
-var errInvalidSendEvent = errors.New("Invalid sendevent contains \\r or \\n")
+var errMissingAuthRequest = errors.New("missing auth request")
+var errInvalidPassword = errors.New("invalid password")
+var errInvalidCommand = errors.New("invalid command contains \\r or \\n")
+var errInvalidSendEvent = errors.New("invalid sendevent contains \\r or \\n")
 var errEmptySendEvent = errors.New("empty sendevent")
-var errTimeout = errors.New("Timeout")
+var errTimeout = errors.New("timeout")
 
 const (
 	ContentTypePLAIN = "text/plain"
@@ -51,11 +51,11 @@ const (
 
 // Connection is the event socket connection handler.
 type Connection struct {
-	conn          net.Conn
-	reader        *bufio.Reader
-	textreader    *textproto.Reader
-	err           chan error
-	evt           chan *Event
+	conn       net.Conn
+	reader     *bufio.Reader
+	textreader *textproto.Reader
+	err        chan error
+	evt        chan *Event
 }
 
 // newConnection allocates a new Connection and initialize its buffers.
@@ -239,7 +239,7 @@ func (h *Connection) readOne() bool {
 		for k, v := range tmp {
 			resp.Header[capitalize(k)] = v
 		}
-		if v, _ := resp.Header["_body"]; v != nil {
+		if v := resp.Header["_body"]; v != nil {
 			resp.Body = v.(string)
 			delete(resp.Header, "_body")
 		} else {

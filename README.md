@@ -10,26 +10,23 @@ This is a work in progress. There is nothing to see yet.
 ## host preparation
 We will need a server running freeswitch.
 
-In debian 10 you can install freeswitch this way:
+On a Ubuntu 20 Desktop you can install it by doing:
 ```
-apt-get update && apt-get install -y gnupg2 wget lsb-release
-
-wget -O - https://files.freeswitch.org/repo/deb/debian-release/fsstretch-archive-keyring.asc | apt-key add -
-
-apt-get update && apt-get install -y freeswitch-meta-all
+cd utils
+sudo ./install_freeswitch https://github.com/signalwire/freeswitch dd2411336fbb17be120801f8d26cfed01e0e6740^
 ```
 
 Then set freeswitch to use our configuration files
 ```
-mv /etc/freeswitch /etc/freeswitch_old
+sudo mv /usr/local/freeswitch/conf /usr/local/freeswitch/conf_old
 
-mkdir /etc/freeswitch
-cp test/artifacts/freeswitch_configuration/* /etc/freeswitch
+sudo mkdir /usr/local/freeswitch/conf
+sudo cp test/artifacts/freeswitch_configuration/* /usr/local/freeswitch/conf/
 ```
 
-And then you can start freeswitch with
+And then you can run freeswitch with
 ```
-service freeswitch start
+sudo /usr/local/freeswitch/bin/freeswitch
 ```
 
 ## installing golang
@@ -50,10 +47,10 @@ EOF
 asdf plugin-add golang
 
 # install golang
-asdf install golang 1.17.6
+asdf install golang 1.18.4
 
 # set golang version to use:
-asdf global golang 1.17.6
+asdf global golang 1.18.4
 
 # test golang installation:
 go version
@@ -84,6 +81,6 @@ npm install
 We don't have tests for the ivr engine yet.
 But to test if the test infra itself is OK do:
 ```
-node first.js
+sudo "$(which node)" first
 ```
 
