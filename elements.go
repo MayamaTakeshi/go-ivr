@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"strings"
+	"strconv"
 
 	"github.com/beevik/etree"
 )
@@ -143,7 +144,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func validate(root *etree.Element) (bool, error) {
+func validate(root *etree.Element, id int) (bool, error) {
 	for _, child := range root.ChildElements() {
 		if _, ok := elementSpecs[child.Tag]; !ok {
 			words := []string{"Unknown Element", child.Tag}
@@ -167,7 +168,11 @@ func validate(root *etree.Element) (bool, error) {
 				return false, errors.New(strings.Join(words, " "))
 			}
 		}
-		_, err := validate(child)
+
+		id++
+		child.CreateAttr("id", strconv.Itoa(id))
+
+		_, err := validate(child, id+1)
 		if err != nil {
 			return false, err
 		}
