@@ -41,6 +41,8 @@ type Connection struct {
 	xmlVars	   map[string]interface{}
 
 	xml *etree.Element
+
+	stack Stack
 }
 
 // newConnection allocates a new Connection and initialize its buffers.
@@ -54,6 +56,7 @@ func newConnection(conn net.Conn) *Connection {
 		goivrConfig: make(map[string]string),
 		sessionParams: make(map[string]string),
 		xmlVars: make(map[string]interface{}),
+		
 	}
 	c.textreader = textproto.NewReader(c.reader)
 	return &c
@@ -252,7 +255,7 @@ func capitalize(s string) string {
 //----------------------------------------------------
 
 // EventHeader represents events as a pair of key:value.
-type EventHeader map[string]interface{}
+type EventHeader map[string]string
 
 // Event represents a FreeSWITCH event.
 type Event struct {
@@ -271,23 +274,10 @@ func (r *Event) String() string {
 // Get returns an Event value, or "" if the key doesn't exist.
 func (r *Event) Get(key string) string {
 	val, ok := r.Header[key]
-	if !ok || val == nil {
+	if !ok {
 		return ""
 	}
-	if s, ok := val.([]string); ok {
-		return strings.Join(s, ", ")
-	}
-	return val.(string)
-}
-
-// GetInt returns an Event value converted to int, or an error if conversion
-// is not possible.
-func (r *Event) GetInt(key string) (int, error) {
-	n, err := strconv.Atoi(r.Header[key].(string))
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
+	return val
 }
 
 // PrettyPrint prints Event headers and body to the standard output.
@@ -324,12 +314,13 @@ func (r *Event) Pretty() string {
 }
 
 
-func (c *Connection) SendCommand(command string) {
+func (c *Connection) SendCommand(command string) error {
 	// Sanity check to avoid breaking the parser
 	//if strings.IndexAny(command, "\r\n") > 0 {
 	//	return nil, errInvalidCommand
 	//}
-	fmt.Fprintf(c.conn, "%s\r\n\r\n", command)
+	_ ,err := fmt.Fprintf(c.conn, "%s\r\n\r\n", command)
+	return err
 }
 
 
@@ -419,6 +410,34 @@ func (c *Connection) IsTerminated() bool {
 	}
 }
 
+func (c *Connection) SendCommandAndWaitOK(command string) error {
+	err := c.SendCommand(command)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case err := <-c.err:
+			log.Println(err)
+			return err
+		case ev := <-c.evt:
+			switch ev.Header["Content-Type"] {
+			case "text/disconnect-notice":
+				return errors.New("connection terminated")
+			case "command/reply":
+				reply := ev.Header["Reply-Text"]
+				if reply[:2] == "-E" {
+					return errors.New(reply[5:])
+				} else {
+					return nil		
+				}
+			// ignore other messages (just consume them)
+			}
+		}
+	}
+}
+
 func (c *Connection) initialize() error {
 	c.SendCommand("connect")
 	ev, err := c.ReadEvent()
@@ -444,19 +463,15 @@ func (c *Connection) initialize() error {
 		return err
 	}
 
-	c.SendCommand("linger 10")
-	ev, err = c.ReadEvent()
+	err = c.SendCommandAndWaitOK("linger 10")
 	if err != nil {
 		return err
 	}
-	fmt.Println("got ev: ", ev.Header["Event-Name"])
 
-	c.SendCommand("myevents")
-	ev, err = c.ReadEvent()
+	err = c.SendCommandAndWaitOK("myevents")
 	if err != nil {
 		return err
 	}
-	fmt.Println("got ev: ", ev.Header["Event-Name"])
 
 	if xml_url, ok := c.goivrConfig["xml_url"]; ok {
 		doc := etree.NewDocument()
