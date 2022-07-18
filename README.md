@@ -81,6 +81,6 @@ npm install
 We don't have tests for the ivr engine yet.
 But to test if the test infra itself is OK do:
 ```
-sudo "$(which node)" first
+sudo "$(which node)" first.js
 ```
 

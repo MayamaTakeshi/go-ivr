@@ -1,24 +1,10 @@
-// Copyright 2013 Alexandre Fiori
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Adapted from code by Alexandre Fiori
 
-// FreeSWITCH Event Socket library for the Go programming language.
-//
-// eventsocket supports both inbound and outbound event socket connections,
-// acting either as a client connecting to FreeSWITCH or as a server accepting
-// connections from FreeSWITCH to control calls.
-//
-// Reference:
-// http://wiki.freeswitch.org/wiki/Event_Socket
-// http://wiki.freeswitch.org/wiki/Event_Socket_Outbound
-//
-// WORK IN PROGRESS, USE AT YOUR OWN RISK.
 package main
 
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,19 +15,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/beevik/etree"
 )
 
 const bufferSize = 1024 << 6 // For the socket reader
 const eventsBuffer = 16      // For the events channel (memory eater!)
-const timeoutPeriod = 10 * time.Second
-
-var errMissingAuthRequest = errors.New("missing auth request")
-var errInvalidPassword = errors.New("invalid password")
-var errInvalidCommand = errors.New("invalid command contains \\r or \\n")
-var errInvalidSendEvent = errors.New("invalid sendevent contains \\r or \\n")
-var errEmptySendEvent = errors.New("empty sendevent")
-var errTimeout = errors.New("timeout")
 
 const (
 	ContentTypePLAIN = "text/plain"
@@ -56,18 +35,28 @@ type Connection struct {
 	textreader *textproto.Reader
 	err        chan error
 	evt        chan *Event
+
+	goivrConfig map[string]string
+	sessionParams map[string]string
+	xmlVars	   map[string]interface{}
+
+	xml *etree.Element
 }
 
 // newConnection allocates a new Connection and initialize its buffers.
-func newConnection(c net.Conn) *Connection {
-	h := Connection{
-		conn:   c,
-		reader: bufio.NewReaderSize(c, bufferSize),
+func newConnection(conn net.Conn) *Connection {
+	c := Connection{
+		conn:   conn,
+		reader: bufio.NewReaderSize(conn, bufferSize),
 		err:    make(chan error, 1),
 		evt:    make(chan *Event, eventsBuffer),
+
+		goivrConfig: make(map[string]string),
+		sessionParams: make(map[string]string),
+		xmlVars: make(map[string]interface{}),
 	}
-	h.textreader = textproto.NewReader(h.reader)
-	return &h
+	c.textreader = textproto.NewReader(c.reader)
+	return &c
 }
 
 // HandleFunc is the function called on new incoming connections.
@@ -99,71 +88,30 @@ func ListenAndServe(addr string, fn HandleFunc) error {
 		return err
 	}
 	for {
-		c, err := srv.Accept()
+		conn, err := srv.Accept()
 		if err != nil {
 			return err
 		}
-		h := newConnection(c)
-		go h.readLoop()
-		go fn(h)
+		c := newConnection(conn)
+		go c.readLoop()
+		go fn(c)
 	}
 }
 
-// Dial attemps to connect to FreeSWITCH and authenticate.
-//
-// Example:
-//
-//	c, _ := eventsocket.Dial("localhost:8021", "ClueCon")
-//	ev, _ := c.Command("events plain ALL") // or events json ALL
-//	for {
-//		ev, _ = c.ReadEvent()
-//		ev.PrettyPrint()
-//		...
-//	}
-//
-func Dial(addr, passwd string) (*Connection, error) {
-	c, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	h := newConnection(c)
-	m, err := h.textreader.ReadMIMEHeader()
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-	if m.Get("Content-Type") != "auth/request" {
-		c.Close()
-		return nil, errMissingAuthRequest
-	}
-	fmt.Fprintf(c, "auth %s\r\n\r\n", passwd)
-	m, err = h.textreader.ReadMIMEHeader()
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-	if m.Get("Reply-Text") != "+OK accepted" {
-		c.Close()
-		return nil, errInvalidPassword
-	}
-	go h.readLoop()
-	return h, err
-}
 
 // readLoop calls readOne until a fatal error occurs, then close the socket.
-func (h *Connection) readLoop() {
-	for h.readOne() {
+func (c *Connection) readLoop() {
+	for c.readOne() {
 	}
-	h.Close()
+	c.Close()
 }
 
 // readOne reads a single event and send over the appropriate channel.
 // It separates incoming events from api and command responses.
-func (h *Connection) readOne() bool {
-	fmt.Println("readOne()")
-	hdr, err := h.textreader.ReadMIMEHeader()
+func (c *Connection) readOne() bool {
+	hdr, err := c.textreader.ReadMIMEHeader()
 	if err != nil {
-		h.err <- err
+		c.err <- err
 		return false
 	}
 	resp := new(Event)
@@ -171,12 +119,12 @@ func (h *Connection) readOne() bool {
 	if v := hdr.Get("Content-Length"); v != "" {
 		length, err := strconv.Atoi(v)
 		if err != nil {
-			h.err <- err
+			c.err <- errors.New("failed to parse Content-Length header")
 			return false
 		}
 		b := make([]byte, length)
-		if _, err := io.ReadFull(h.reader, b); err != nil {
-			h.err <- err
+		if _, err := io.ReadFull(c.reader, b); err != nil {
+			c.err <- errors.New("failed to read data from ESL socket")
 			return false
 		}
 		resp.Body = string(b)
@@ -184,73 +132,44 @@ func (h *Connection) readOne() bool {
 	switch hdr.Get("Content-Type") {
 	case "command/reply":
 		reply := hdr.Get("Reply-Text")
-		if reply[:2] == "-E" {
-			h.err <- errors.New(reply[5:])
-			return true
-		}
+
 		if reply[0] == '%' {
 			copyHeaders(&hdr, resp, true)
 		} else {
 			copyHeaders(&hdr, resp, false)
 		}
-		fmt.Println("adding command/reply to h.evt")
-		h.evt <- resp
+		c.evt <- resp
 	case "api/response":
-		if string(resp.Body[:2]) == "-E" {
-			h.err <- errors.New(string(resp.Body)[5:])
-			return true
-		}
 		copyHeaders(&hdr, resp, false)
-		fmt.Println("adding api/response to h.evt")
-		h.evt <- resp
+		fmt.Println("adding api/response to c.evt")
+		c.evt <- resp
 	case "text/event-plain":
 		reader := bufio.NewReader(bytes.NewReader([]byte(resp.Body)))
 		resp.Body = ""
 		textreader := textproto.NewReader(reader)
 		hdr, err = textreader.ReadMIMEHeader()
 		if err != nil {
-			h.err <- err
+			c.err <- err
 			return false
 		}
 		if v := hdr.Get("Content-Length"); v != "" {
 			length, err := strconv.Atoi(v)
 			if err != nil {
-				h.err <- err
+				c.err <- errors.New("failed to parse Content-Length header for body")
 				return false
 			}
 			b := make([]byte, length)
 			if _, err = io.ReadFull(reader, b); err != nil {
-				h.err <- err
+				c.err <- errors.New("failed to read body data from ESL socket")
 				return false
 			}
 			resp.Body = string(b)
 		}
 		copyHeaders(&hdr, resp, true)
-		fmt.Println("adding text/event-plain to h.evt")
-		h.evt <- resp
-	case "text/event-json":
-		tmp := make(EventHeader)
-		err := json.Unmarshal([]byte(resp.Body), &tmp)
-		if err != nil {
-			h.err <- err
-			return false
-		}
-		// capitalize header keys for consistency.
-		for k, v := range tmp {
-			resp.Header[capitalize(k)] = v
-		}
-		if v := resp.Header["_body"]; v != nil {
-			resp.Body = v.(string)
-			delete(resp.Header, "_body")
-		} else {
-			resp.Body = ""
-		}
-		fmt.Println("adding text/event-json to h.evt")
-		h.evt <- resp
+		c.evt <- resp
 	case "text/disconnect-notice":
 		copyHeaders(&hdr, resp, false)
-		fmt.Println("adding text/disconnect-notice to h.evt")
-		h.evt <- resp
+		c.evt <- resp
 	default:
 		log.Fatal("Unsupported event:", hdr)
 	}
@@ -258,30 +177,25 @@ func (h *Connection) readOne() bool {
 }
 
 // RemoteAddr returns the remote addr of the connection.
-func (h *Connection) RemoteAddr() net.Addr {
-	return h.conn.RemoteAddr()
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
 }
 
 // Close terminates the connection.
-func (h *Connection) Close() {
-	h.conn.Close()
+func (c *Connection) Close() {
+	c.conn.Close()
 }
 
-// ReadEvent reads and returns events from the server. It supports both plain
-// or json, but *not* XML.
-//
-// When subscribing to events (e.g. `Command("events json ALL")`) it makes no
-// difference to use plain or json. ReadEvent will parse them and return
-// all headers and the body (if any) in an Event struct.
-func (h *Connection) ReadEvent() (*Event, error) {
+// ReadEvent reads and returns events from the server (plain format only)
+func (c *Connection) ReadEvent() (*Event, error) {
 	var (
 		ev  *Event
 		err error
 	)
 	select {
-	case err = <-h.err:
+	case err = <-c.err:
 		return nil, err
-	case ev = <-h.evt:
+	case ev = <-c.evt:
 		return ev, nil
 	}
 }
@@ -407,4 +321,168 @@ func (r *Event) Pretty() string {
 		items = append(items, fmt.Sprintf("BODY: %#v\n", r.Body))
 	}
 	return strings.Join(items, "")
+}
+
+
+func (c *Connection) SendCommand(command string) {
+	// Sanity check to avoid breaking the parser
+	//if strings.IndexAny(command, "\r\n") > 0 {
+	//	return nil, errInvalidCommand
+	//}
+	fmt.Fprintf(c.conn, "%s\r\n\r\n", command)
+}
+
+
+
+// MSG is the container used by SendMsg to store messages sent to FreeSWITCc.
+// It's supposed to be populated with directives supported by the sendmsg
+// command only, like "call-command: execute".
+//
+// See https://freeswitch.org/confluence/display/FREESWITCH/mod_event_socket#mod_event_socket-3.9sendmsg for details.
+type MSG map[string]string
+
+// SendMsg sends messages to FreeSWITCH and returns a response Event.
+//
+// Examples:
+//
+//	SendMsg(MSG{
+//		"call-command": "hangup",
+//		"hangup-cause": "we're done!",
+//	}, "", "")
+//
+//	SendMsg(MSG{
+//		"call-command":     "execute",
+//		"execute-app-name": "playback",
+//		"execute-app-arg":  "/tmp/test.wav",
+//	}, "", "")
+//
+// Keys with empty values are ignored; uuid and appData are optional.
+// If appData is set, a "content-length" header is expected (lower case!).
+//
+// See https://freeswitch.org/confluence/display/FREESWITCH/mod_event_socket#mod_event_socket-3.9sendmsg for details.
+func (c *Connection) SendSendMsg(m MSG, appData string) error {
+	b := bytes.NewBufferString("sendmsg")
+	b.WriteString("\n")
+	for k, v := range m {
+		if v != "" {
+			b.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+		}
+	}
+	b.WriteString("\n")
+	if m["content-length"] != "" && appData != "" {
+		b.WriteString(appData)
+	}
+	if _, err := b.WriteTo(c.conn); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Execute is a shortcut to SendMsg with call-command: execute without UUID,
+// suitable for use on outbound event socket connections (acting as server).
+//
+// Example:
+//
+//	Execute("playback", "/tmp/test.wav", false)
+//
+// See https://freeswitch.org/confluence/display/FREESWITCH/mod_event_socket#mod_event_socket-3.9sendmsg for details.
+func (c *Connection) SendExecute(appName, appArg string, lock bool) error {
+	var evlock string
+	if lock {
+		// Could be strconv.FormatBool(lock), but we don't want to
+		// send event-lock when it's set to false.
+		evlock = "true"
+	}
+	return c.SendSendMsg(MSG{
+		"call-command":     "execute",
+		"execute-app-name": appName,
+		"execute-app-arg":  appArg,
+		"event-lock":       evlock,
+	}, "")
+}
+
+func (c *Connection) IsTerminated() bool {
+	for {
+		select {
+		case err := <-c.err:
+			log.Println(err)
+			return true
+		case ev := <-c.evt:
+			if ev.Header["Content-Type"] == "text/disconnect-notice" {
+				return true
+			}
+			// discard any other messages
+		default:
+			return false
+		}
+	}
+}
+
+func (c *Connection) initialize() error {
+	c.SendCommand("connect")
+	ev, err := c.ReadEvent()
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	fmt.Println("got ev: ", ev.Header["Event-Name"])
+
+	goivr_config := ev.Get("Variable_goivr_config")
+	fmt.Println("goivr_config:")
+	fmt.Println(goivr_config)
+
+	if goivr_config == "" {
+		err := errors.New("variable_goivr_config absent")
+		return err
+	}
+
+	err = keyValueString2Map(c.goivrConfig, goivr_config, ";", "=")
+	if err != nil {
+		return err
+	}
+
+	c.SendCommand("linger 10")
+	ev, err = c.ReadEvent()
+	if err != nil {
+		return err
+	}
+	fmt.Println("got ev: ", ev.Header["Event-Name"])
+
+	c.SendCommand("myevents")
+	ev, err = c.ReadEvent()
+	if err != nil {
+		return err
+	}
+	fmt.Println("got ev: ", ev.Header["Event-Name"])
+
+	if xml_url, ok := c.goivrConfig["xml_url"]; ok {
+		doc := etree.NewDocument()
+
+		if xmlBytes, err := getXML(xml_url); err != nil {
+			err := fmt.Errorf("got error while getting XML: %w", err)
+	
+			return err
+		} else {
+			err := doc.ReadFromBytes(xmlBytes)
+			if err != nil {
+				err := errors.New("failed to parse xml")
+				return err
+			}
+			fmt.Println(doc)
+			root := doc.Root()
+			for _, ch := range root.ChildElements() {
+				fmt.Println(ch)
+			}
+
+			c.xml = root
+		}
+	} else {
+		err := errors.New("could not resolve xml_url")
+		return err
+	}
+
+	return nil
 }

@@ -2,24 +2,23 @@ package main
 
 import (
 	"fmt"
+	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 )
 
-func keyValueString2Map(s string, sep string, kv_sep string) map[string]string {
-	m := make(map[string]string)
+func keyValueString2Map(m map[string]string, s string, sep string, kv_sep string) error {
 	tokens := strings.Split(s, sep)
 	for _, token := range tokens {
 		tks := strings.Split(token, kv_sep)
 		if len(tks) != 2 {
-			log.Println("Invalid length")
+			return errors.New("keyValueString2Map invalid length")
 		}
 		m[tks[0]] = tks[1]
 	}
 
-	return m
+	return nil
 }
 
 func getXML(url string) ([]byte, error) {
