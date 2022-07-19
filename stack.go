@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/beevik/etree"	
+	"github.com/beevik/etree"
 )
 
 type ElementList []*etree.Element
@@ -21,19 +21,19 @@ func (s *Stack) Pop() (ElementList, bool) {
 	if s.IsEmpty() {
 		return nil, false
 	} else {
-		index := len(*s) - 1 // Get the index of the top most element.
+		index := len(*s) - 1   // Get the index of the top most element.
 		element := (*s)[index] // Index into the slice and obtain the element.
-		*s = (*s)[:index] // Remove it from the stack by slicing it off.
+		*s = (*s)[:index]      // Remove it from the stack by slicing it off.
 		return element, true
 	}
 }
 
-func (s *Stack) Top() (ElementList, bool) {
+func (s *Stack) Top() (ElementList) {
 	if s.IsEmpty() {
-		return nil, false
+		return nil
 	} else {
-		index := len(*s) - 1 // Get the index of the top most element.
+		index := len(*s) - 1   // Get the index of the top most element.
 		element := (*s)[index] // Index into the slice and obtain the element.
-		return element, true
+		return element
 	}
 }

@@ -144,20 +144,20 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func validate(root *etree.Element, id int) (bool, error) {
+func validate(root *etree.Element, id int) error {
 	for _, child := range root.ChildElements() {
 		if _, ok := elementSpecs[child.Tag]; !ok {
 			words := []string{"Unknown Element", child.Tag}
-			return false, errors.New(strings.Join(words, " "))
+			return errors.New(strings.Join(words, " "))
 		}
 
 		for _, attr := range child.Attr {
 			if attrSpec, ok := elementSpecs[child.Tag].attributes[attr.Key]; !ok {
 				words := []string{"Element", child.Tag, "unknown Attribute", attr.Key}
-				return false, errors.New(strings.Join(words, " "))
+				return errors.New(strings.Join(words, " "))
 			} else {
 				if ok, err := attrSpec.validator(attr.Value); !ok {
-					return false, err
+					return err
 				}
 			}
 		}
@@ -165,17 +165,17 @@ func validate(root *etree.Element, id int) (bool, error) {
 		for _, childOfChild := range child.ChildElements() {
 			if !contains(elementSpecs[child.Tag].allowedChildren, childOfChild.Tag) {
 				words := []string{"Element", child.Tag, "cannot contain Element", childOfChild.Tag}
-				return false, errors.New(strings.Join(words, " "))
+				return errors.New(strings.Join(words, " "))
 			}
 		}
 
 		id++
 		child.CreateAttr("id", strconv.Itoa(id))
 
-		_, err := validate(child, id+1)
+		err := validate(child, id+1)
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }

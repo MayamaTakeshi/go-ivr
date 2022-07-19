@@ -36,9 +36,9 @@ type Connection struct {
 	err        chan error
 	evt        chan *Event
 
-	goivrConfig map[string]string
+	goivrConfig   map[string]string
 	sessionParams map[string]string
-	xmlVars	   map[string]interface{}
+	xmlVars       map[string]interface{}
 
 	xml *etree.Element
 
@@ -53,10 +53,9 @@ func newConnection(conn net.Conn) *Connection {
 		err:    make(chan error, 1),
 		evt:    make(chan *Event, eventsBuffer),
 
-		goivrConfig: make(map[string]string),
+		goivrConfig:   make(map[string]string),
 		sessionParams: make(map[string]string),
-		xmlVars: make(map[string]interface{}),
-		
+		xmlVars:       make(map[string]interface{}),
 	}
 	c.textreader = textproto.NewReader(c.reader)
 	return &c
@@ -100,7 +99,6 @@ func ListenAndServe(addr string, fn HandleFunc) error {
 		go fn(c)
 	}
 }
-
 
 // readLoop calls readOne until a fatal error occurs, then close the socket.
 func (c *Connection) readLoop() {
@@ -313,17 +311,14 @@ func (r *Event) Pretty() string {
 	return strings.Join(items, "")
 }
 
-
 func (c *Connection) SendCommand(command string) error {
 	// Sanity check to avoid breaking the parser
 	//if strings.IndexAny(command, "\r\n") > 0 {
 	//	return nil, errInvalidCommand
 	//}
-	_ ,err := fmt.Fprintf(c.conn, "%s\r\n\r\n", command)
+	_, err := fmt.Fprintf(c.conn, "%s\r\n\r\n", command)
 	return err
 }
-
-
 
 // MSG is the container used by SendMsg to store messages sent to FreeSWITCc.
 // It's supposed to be populated with directives supported by the sendmsg
@@ -430,9 +425,9 @@ func (c *Connection) SendCommandAndWaitOK(command string) error {
 				if reply[:2] == "-E" {
 					return errors.New(reply[5:])
 				} else {
-					return nil		
+					return nil
 				}
-			// ignore other messages (just consume them)
+				// ignore other messages (just consume them)
 			}
 		}
 	}
@@ -478,7 +473,7 @@ func (c *Connection) initialize() error {
 
 		if xmlBytes, err := getXML(xml_url); err != nil {
 			err := fmt.Errorf("got error while getting XML: %w", err)
-	
+
 			return err
 		} else {
 			err := doc.ReadFromBytes(xmlBytes)
@@ -500,4 +495,66 @@ func (c *Connection) initialize() error {
 	}
 
 	return nil
+}
+
+func (c *Connection) initializeStack() error {
+	elems := c.xml.FindElements("//Section[name='main']")
+	if len(elems) == 0 {
+		temp := make([]*etree.Element, 0)
+		copy(c.xml.ChildElements(), temp)
+		c.stack.Push(temp)
+	} else if len(elems) == 1 {
+		c.stack.Push(elems[0].ChildElements())
+	} else {
+		return errors.New("more than one Section with @name=main")
+	}
+	return nil
+}
+
+func (c *Connection) process() error {
+	var err error
+
+	for !c.stack.IsEmpty() {
+		var head *etree.Element
+		elems := c.stack.Top()
+		for len(elems) > 0 {
+			head, elems = elems[0], elems[1:]
+			err = c.processElement(head)
+			if err != nil {
+				break
+			}
+
+			if err != nil || c.IsTerminated() {
+				break
+			}
+		}
+
+		if err != nil || c.IsTerminated() {
+			break
+		}
+	}
+	return nil
+}
+
+func (c *Connection) processElement(elem *etree.Element) error {
+	err = c.SendExecute("hangup", "USER_BUSY", true)
+	if err != nil {
+		log.Println(err)
+	}
+
+	ev, err := c.ReadEvent()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println("got ev: ", ev.Header["Event-Name"])
+
+	for {
+		ev, err = c.ReadEvent()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		fmt.Println("\nNew event")
+		fmt.Println("got ev: ", ev.Header["Event-Name"])
+	}
 }

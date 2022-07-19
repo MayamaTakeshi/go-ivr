@@ -29,8 +29,7 @@ func Test_stack(t *testing.T) {
 	stack.Push(elemList)
 	stack.Push(elemList)
 
-	topBefore, ok := stack.Top()
-	assert.True(ok)
+	topBefore := stack.Top()
 	fmt.Println(topBefore)
 
 	_, topBefore = topBefore[0], topBefore[1:]

@@ -22,25 +22,26 @@ func handler(c *Connection) {
 			return
 		}
 
-		err = c.SendExecute("hangup", "USER_BUSY", true)
+		err = validate(c.xml, 0)
 		if err != nil {
 			log.Println(err)
+			c.Close()
+			return
 		}
 
-		ev, err := c.ReadEvent()
+		err = c.initializeStack()
 		if err != nil {
 			log.Println(err)
+			c.Close()
+			return
 		}
-		fmt.Println("got ev: ", ev.Header["Event-Name"])
 
-		for {
-			ev, err = c.ReadEvent()
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			fmt.Println("\nNew event")
-			fmt.Println("got ev: ", ev.Header["Event-Name"])
+		err = c.process()
+		if err != nil {
+			log.Println(err)
+			c.Close()
+			return
 		}
+		
 	}()
 }
