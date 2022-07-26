@@ -21,7 +21,7 @@ func Test_validate_ok(t *testing.T) {
 	assert.Nil(err)
 
 	root := doc.Root()
-	err = validate(root, 0)
+	err = validateXML(root, 0)
 	assert.Nil(err)
 }
 
@@ -38,7 +38,7 @@ func Test_validate_invalid_child(t *testing.T) {
 	assert.Nil(err)
 
 	root := doc.Root()
-	err = validate(root, 0)
+	err = validateXML(root, 0)
 	assert.Equal(err, errors.New("Element Speak cannot contain Element Play"))
 }
 
@@ -56,7 +56,7 @@ func Test_validate_unknown_element(t *testing.T) {
 	assert.Nil(err)
 
 	root := doc.Root()
-	err = validate(root, 0)
+	err = validateXML(root, 0)
 	assert.Equal(err, errors.New("Unknown Element BlaBla"))
 }
 
@@ -76,6 +76,6 @@ func Test_validate_unknown_attribute(t *testing.T) {
 	assert.Nil(err)
 
 	root := doc.Root()
-	err = validate(root, 0)
+	err = validateXML(root, 0)
 	assert.Equal(err, errors.New("Element GetDigits unknown Attribute dummyAttribute"))
 }

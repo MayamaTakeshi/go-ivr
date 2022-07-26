@@ -8,6 +8,19 @@ import (
 	"github.com/beevik/etree"
 )
 
+type HaltType int
+
+const (
+	Error HaltType = iota
+	GoTo
+	Termination
+)
+
+type GoIvrHalt struct {
+	Type HaltType
+	Val string
+}
+
 type attributeSpec struct {
 	required     bool
 	defaultValue string
@@ -144,7 +157,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func validate(root *etree.Element, id int) error {
+func validateXML(root *etree.Element, id int) error {
 	for _, child := range root.ChildElements() {
 		if _, ok := elementSpecs[child.Tag]; !ok {
 			words := []string{"Unknown Element", child.Tag}
@@ -172,7 +185,7 @@ func validate(root *etree.Element, id int) error {
 		id++
 		child.CreateAttr("id", strconv.Itoa(id))
 
-		err := validate(child, id+1)
+		err := validateXML(child, id+1)
 		if err != nil {
 			return err
 		}

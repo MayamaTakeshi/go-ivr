@@ -188,14 +188,14 @@ func (c *Connection) Close() {
 }
 
 // ReadEvent reads and returns events from the server (plain format only)
-func (c *Connection) ReadEvent() (*Event, error) {
+func (c *Connection) ReadEvent() (*Event, *GoIvrHalt) {
 	var (
 		ev  *Event
 		err error
 	)
 	select {
 	case err = <-c.err:
-		return nil, err
+		return nil, &GoIvrHalt{Type: Error, Val: err.Error()}
 	case ev = <-c.evt:
 		return ev, nil
 	}
@@ -346,7 +346,7 @@ type MSG map[string]string
 // If appData is set, a "content-length" header is expected (lower case!).
 //
 // See https://freeswitch.org/confluence/display/FREESWITCH/mod_event_socket#mod_event_socket-3.9sendmsg for details.
-func (c *Connection) SendSendMsg(m MSG, appData string) error {
+func (c *Connection) SendSendMsg(m MSG, appData string) *GoIvrHalt {
 	b := bytes.NewBufferString("sendmsg")
 	b.WriteString("\n")
 	for k, v := range m {
@@ -359,7 +359,7 @@ func (c *Connection) SendSendMsg(m MSG, appData string) error {
 		b.WriteString(appData)
 	}
 	if _, err := b.WriteTo(c.conn); err != nil {
-		return err
+		return &GoIvrHalt{Type: Error, Val: err.Error()}
 	}
 
 	return nil
@@ -373,7 +373,7 @@ func (c *Connection) SendSendMsg(m MSG, appData string) error {
 //	Execute("playback", "/tmp/test.wav", false)
 //
 // See https://freeswitch.org/confluence/display/FREESWITCH/mod_event_socket#mod_event_socket-3.9sendmsg for details.
-func (c *Connection) SendExecute(appName, appArg string, lock bool) error {
+func (c *Connection) SendExecute(appName, appArg string, lock bool) *GoIvrHalt {
 	var evlock string
 	if lock {
 		// Could be strconv.FormatBool(lock), but we don't want to
@@ -405,25 +405,25 @@ func (c *Connection) IsTerminated() bool {
 	}
 }
 
-func (c *Connection) SendCommandAndWaitOK(command string) error {
+func (c *Connection) SendCommandAndWaitOK(command string) *GoIvrHalt {
 	err := c.SendCommand(command)
 	if err != nil {
-		return err
+		return &GoIvrHalt{Error, err.Error()}
 	}
 
 	for {
 		select {
 		case err := <-c.err:
 			log.Println(err)
-			return err
+			return &GoIvrHalt{Error, err.Error()}
 		case ev := <-c.evt:
 			switch ev.Header["Content-Type"] {
 			case "text/disconnect-notice":
-				return errors.New("connection terminated")
+				return &GoIvrHalt{Termination, "connection terminated"}
 			case "command/reply":
 				reply := ev.Header["Reply-Text"]
 				if reply[:2] == "-E" {
-					return errors.New(reply[5:])
+					return &GoIvrHalt{Error, reply[5:]}
 				} else {
 					return nil
 				}
@@ -433,7 +433,7 @@ func (c *Connection) SendCommandAndWaitOK(command string) error {
 	}
 }
 
-func (c *Connection) initialize() error {
+func (c *Connection) initialize() *GoIvrHalt {
 	c.SendCommand("connect")
 	ev, err := c.ReadEvent()
 
@@ -449,8 +449,7 @@ func (c *Connection) initialize() error {
 	fmt.Println(goivr_config)
 
 	if goivr_config == "" {
-		err := errors.New("variable_goivr_config absent")
-		return err
+		return &GoIvrHalt{Error, "variable_goivr_config absent"}
 	}
 
 	err = keyValueString2Map(c.goivrConfig, goivr_config, ";", "=")
@@ -472,14 +471,11 @@ func (c *Connection) initialize() error {
 		doc := etree.NewDocument()
 
 		if xmlBytes, err := getXML(xml_url); err != nil {
-			err := fmt.Errorf("got error while getting XML: %w", err)
-
 			return err
 		} else {
 			err := doc.ReadFromBytes(xmlBytes)
 			if err != nil {
-				err := errors.New("failed to parse xml")
-				return err
+				return &GoIvrHalt{Error, "failed to parse xml"}
 			}
 			fmt.Println(doc)
 			root := doc.Root()
@@ -490,14 +486,13 @@ func (c *Connection) initialize() error {
 			c.xml = root
 		}
 	} else {
-		err := errors.New("could not resolve xml_url")
-		return err
+		return &GoIvrHalt{Error, "could not resolve xml_url"}
 	}
 
 	return nil
 }
 
-func (c *Connection) initializeStack() error {
+func (c *Connection) initializeStack() *GoIvrHalt {
 	elems := c.xml.FindElements("//Section[name='main']")
 	if len(elems) == 0 {
 		temp := make([]*etree.Element, 0)
@@ -506,38 +501,30 @@ func (c *Connection) initializeStack() error {
 	} else if len(elems) == 1 {
 		c.stack.Push(elems[0].ChildElements())
 	} else {
-		return errors.New("more than one Section with @name=main")
+		return &GoIvrHalt{Error, "more than one Section with @name=main"}
 	}
 	return nil
 }
 
-func (c *Connection) process() error {
-	var err error
+func (c *Connection) process() *GoIvrHalt {
+	var halt *GoIvrHalt
 
 	for !c.stack.IsEmpty() {
 		var head *etree.Element
 		elems := c.stack.Top()
 		for len(elems) > 0 {
 			head, elems = elems[0], elems[1:]
-			err = c.processElement(head)
-			if err != nil {
-				break
+			halt = c.processElement(head)
+			if halt != nil {
+				return halt
 			}
-
-			if err != nil || c.IsTerminated() {
-				break
-			}
-		}
-
-		if err != nil || c.IsTerminated() {
-			break
 		}
 	}
 	return nil
 }
 
-func (c *Connection) processElement(elem *etree.Element) error {
-	err = c.SendExecute("hangup", "USER_BUSY", true)
+func (c *Connection) processElement(elem *etree.Element) *GoIvrHalt {
+	err := c.SendExecute("hangup", "USER_BUSY", true)
 	if err != nil {
 		log.Println(err)
 	}
@@ -552,7 +539,7 @@ func (c *Connection) processElement(elem *etree.Element) error {
 		ev, err = c.ReadEvent()
 		if err != nil {
 			log.Println(err)
-			return
+			return err
 		}
 		fmt.Println("\nNew event")
 		fmt.Println("got ev: ", ev.Header["Event-Name"])

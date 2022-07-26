@@ -22,8 +22,8 @@ func handler(c *Connection) {
 			return
 		}
 
-		err = validate(c.xml, 0)
-		if err != nil {
+		err2 := validateXML(c.xml, 0)
+		if err2 != nil {
 			log.Println(err)
 			c.Close()
 			return
