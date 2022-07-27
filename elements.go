@@ -36,6 +36,16 @@ var elementSpecs map[string]elementSpec
 
 func init() {
 	elementSpecs = map[string]elementSpec{
+		"Hangup": {
+			attributes: map[string]attributeSpec{
+				"cause": {
+					required: 		false,
+					defaultValue:   "USER_BUSY",
+					validator: func(val string) (bool, error) { return true, nil },
+				},
+			},
+			allowedChildren: []string{},
+		},
 		"Play": {
 			attributes: map[string]attributeSpec{
 				"loop": {

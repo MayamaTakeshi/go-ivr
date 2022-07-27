@@ -24,7 +24,7 @@ func handler(c *Connection) {
 
 		err2 := validateXML(c.xml, 0)
 		if err2 != nil {
-			log.Println(err)
+			log.Println(err2)
 			c.Close()
 			return
 		}
@@ -43,5 +43,6 @@ func handler(c *Connection) {
 			return
 		}
 		
+		fmt.Println("Finished")
 	}()
 }

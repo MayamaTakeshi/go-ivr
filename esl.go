@@ -493,12 +493,15 @@ func (c *Connection) initialize() *GoIvrHalt {
 }
 
 func (c *Connection) initializeStack() *GoIvrHalt {
+	fmt.Println("initializeStack")
 	elems := c.xml.FindElements("//Section[name='main']")
 	if len(elems) == 0 {
-		temp := make([]*etree.Element, 0)
-		copy(c.xml.ChildElements(), temp)
+		fmt.Println("no main section")
+		temp := make([]*etree.Element, len(c.xml.ChildElements()))
+		copy(temp, c.xml.ChildElements())
 		c.stack.Push(temp)
 	} else if len(elems) == 1 {
+		fmt.Println("found main section")
 		c.stack.Push(elems[0].ChildElements())
 	} else {
 		return &GoIvrHalt{Error, "more than one Section with @name=main"}
@@ -507,12 +510,18 @@ func (c *Connection) initializeStack() *GoIvrHalt {
 }
 
 func (c *Connection) process() *GoIvrHalt {
+	fmt.Println("process")
 	var halt *GoIvrHalt
 
+	fmt.Println("p1")
 	for !c.stack.IsEmpty() {
+		fmt.Println("p2")
+		fmt.Println(c.stack)
 		var head *etree.Element
-		elems := c.stack.Top()
+		elems, _ := c.stack.Pop()
+		fmt.Println(len(elems))
 		for len(elems) > 0 {
+			fmt.Println("p3")
 			head, elems = elems[0], elems[1:]
 			halt = c.processElement(head)
 			if halt != nil {
@@ -524,6 +533,7 @@ func (c *Connection) process() *GoIvrHalt {
 }
 
 func (c *Connection) processElement(elem *etree.Element) *GoIvrHalt {
+	fmt.Println("processElement")
 	err := c.SendExecute("hangup", "USER_BUSY", true)
 	if err != nil {
 		log.Println(err)
