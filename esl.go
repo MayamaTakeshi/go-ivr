@@ -543,7 +543,14 @@ func (c *Connection) processElement(elem *etree.Element) *GoIvrHalt {
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("got ev: ", ev.Header["Event-Name"])
+	
+	var msg string
+	if ev.Header["Event-Name"] != ""{
+		msg = ev.Header["Event-Name"]
+	} else {
+		msg = ev.Header["Content-Type"]
+	}
+	fmt.Println("got: ", msg)
 
 	for {
 		ev, err = c.ReadEvent()
@@ -551,7 +558,13 @@ func (c *Connection) processElement(elem *etree.Element) *GoIvrHalt {
 			log.Println(err)
 			return err
 		}
-		fmt.Println("\nNew event")
-		fmt.Println("got ev: ", ev.Header["Event-Name"])
+		
+		if ev.Header["Event-Name"] != "" {
+			msg = ev.Header["Event-Name"]
+		} else {
+			msg = ev.Header["Content-Type"]
+		}
+
+		fmt.Println("got: ", msg)
 	}
 }
